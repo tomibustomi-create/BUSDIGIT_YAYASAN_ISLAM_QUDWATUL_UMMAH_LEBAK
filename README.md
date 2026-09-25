@@ -1,4 +1,4 @@
-# SANTRIMAN — MASTER PROJECT PACKAGE
+# BUSDIGIT — MASTER PROJECT PACKAGE
 
 Paket artefak proyek Yayasan Islam Qudwatul Ummah Lebak, v1.0.
 
