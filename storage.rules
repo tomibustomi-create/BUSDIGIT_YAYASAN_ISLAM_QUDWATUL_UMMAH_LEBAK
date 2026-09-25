@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && (
+        request.auth.token.role in ['BENDAHARA', 'KEUANGAN', 'OPERATOR_SPP', 'SUPER_ADMIN', 'PIMPINAN_YAYASAN']
+      );
+    }
+
+    // Bukti Transaksi Pengeluaran / Nota Belanja BOS/BOSDA
+    match /evidence/{unitId}/{year}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff() 
+        && request.resource.size < 10 * 1024 * 1024 // Max 10MB
+        && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Bukti Pembayaran Siswa (SPP / IBL)
+    match /receipts/{unitId}/{year}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff()
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}

@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+    
+    function getUserUnit() {
+      return request.auth.token.unitId;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'SUPER_ADMIN';
+    }
+    
+    function isYayasanLeader() {
+      return isAuthenticated() && (getUserRole() == 'PIMPINAN_YAYASAN' || isSuperAdmin());
+    }
+
+    function canAccessUnit(unitId) {
+      return isYayasanLeader() || getUserUnit() == unitId || getUserUnit() == 'ALL';
+    }
+
+    // Units
+    match /units/{unitId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // Fund Sources
+    match /fund_sources/{fundId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin() || (isAuthenticated() && getUserRole() == 'KEUANGAN');
+    }
+
+    // Chart of Accounts (COA)
+    match /chart_of_accounts/{accountId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin() || (isAuthenticated() && getUserRole() == 'KEUANGAN');
+    }
+
+    // Fiscal Periods
+    match /fiscal_periods/{periodId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin() || (isAuthenticated() && getUserRole() == 'KEUANGAN');
+    }
+
+    // Journal Entries (Double-Entry Invariant: debit == credit)
+    match /journal_entries/{journalId} {
+      allow read: if isAuthenticated() && canAccessUnit(resource.data.unitId);
+      
+      // Creating draft / posting journal
+      allow create: if isAuthenticated() 
+        && canAccessUnit(request.resource.data.unitId)
+        && request.resource.data.totalDebit == request.resource.data.totalCredit
+        && request.resource.data.totalDebit > 0;
+
+      // Update hanya diperbolehkan jika belum POSTED
+      allow update: if isAuthenticated() 
+        && canAccessUnit(resource.data.unitId)
+        && resource.data.status != 'POSTED'
+        && request.resource.data.totalDebit == request.resource.data.totalCredit;
+
+      // Tidak boleh hapus transaksi yang sudah POSTED
+      allow delete: if isAuthenticated() 
+        && resource.data.status == 'DRAFT' 
+        && canAccessUnit(resource.data.unitId);
+
+      // Subkoleksi Lines
+      match /lines/{lineId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() 
+          && get(/databases/$(database)/documents/journal_entries/$(journalId)).data.status != 'POSTED';
+      }
+    }
+
+    // Student Invoices & Payments (SPP / IBL)
+    match /student_invoices/{invoiceId} {
+      allow read: if isAuthenticated() && canAccessUnit(resource.data.unitId);
+      allow write: if isAuthenticated() && (
+        getUserRole() in ['OPERATOR_SPP', 'KEUANGAN', 'BENDAHARA', 'SUPER_ADMIN']
+      );
+    }
+
+    // Budgets (BOS / BOSDA / Unit)
+    match /budgets/{budgetId} {
+      allow read: if isAuthenticated() && canAccessUnit(resource.data.unitId);
+      allow write: if isAuthenticated() && (
+        getUserRole() in ['KEUANGAN', 'PIMPINAN_YAYASAN', 'SUPER_ADMIN']
+      );
+      
+      match /lines/{lineId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && (
+          getUserRole() in ['KEUANGAN', 'PIMPINAN_YAYASAN', 'SUPER_ADMIN']
+        );
+      }
+    }
+
+    // Audit Logs (Write-Only Append, Never Edit/Delete)
+    match /audit_logs/{logId} {
+      allow read: if isYayasanLeader() || getUserRole() == 'AUDITOR';
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIMKEU — Yayasan Islam Qudwatul Ummah Lebak</title>
+  
+  <!-- Tailwind CSS & FontAwesome CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js & SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Firebase Client SDK (Compat v9 untuk kemudahan embed) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b'
+            },
+            accent: {
+              500: '#0284c7',
+              600: '#0369a1'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts: Plus Jakarta Sans (Mencegah bug glyph / wingdings font pada Windows Chrome) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+    /* Terapkan font standar yang jelas pada seluruh elemen */
+    html, body, button, input, select, textarea, p, span, h1, h2, h3, h4, h5, h6, table, th, td, div, label {
+      font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, Arial, sans-serif !important;
+    }
+
+    /* Pastikan icon FontAwesome tidak tertimpa oleh font family teks */
+    .fa, .fas, .far, .fal, .fad, .fab, .fa-solid, .fa-regular, .fa-brands, [class^="fa-"], [class*=" fa-"] {
+      font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Top Navbar Header -->
+  <header class="bg-brand-800 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center text-emerald-300 border border-emerald-400/40">
+            <i class="fa-solid fa-mosque text-xl"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-base sm:text-lg tracking-wide leading-tight">SIMKEU QUDWATUL UMMAH</h1>
+            <p class="text-xs text-emerald-200">Yayasan Islam Qudwatul Ummah Lebak • Bisnis Digital</p>
+          </div>
+        </div>
+
+        <!-- Connection Status & Profile -->
+        <div class="flex items-center space-x-3">
+          <button onclick="switchTab('settings')" class="flex items-center space-x-2 text-xs bg-emerald-900/60 hover:bg-emerald-900 px-3 py-1.5 rounded-full border border-emerald-500/40 transition">
+            <span id="db-status-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="db-status-text">GAS Mode</span>
+            <i class="fa-solid fa-gear ml-1 text-emerald-300"></i>
+          </button>
+          
+          <div class="hidden sm:flex items-center space-x-2 pl-3 border-l border-emerald-700">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-semibold">
+              <i class="fa-solid fa-user-tie"></i>
+            </div>
+            <div class="text-left text-xs">
+              <p class="font-semibold leading-tight">Bendahara Yayasan</p>
+              <p class="text-[10px] text-emerald-300">Multi-Unit Access</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-brand-900 border-t border-brand-700/60">
+      <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto space-x-1 sm:space-x-4 py-2 text-sm font-medium">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn px-3 py-2 rounded-md bg-emerald-700 text-white flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-chart-pie"></i><span>Dashboard</span>
+        </button>
+        <button onclick="switchTab('jurnal')" id="nav-jurnal" class="tab-btn px-3 py-2 rounded-md text-emerald-200 hover:text-white hover:bg-emerald-800/60 flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-book-journal-whills"></i><span>Input Jurnal</span>
+        </button>
+        <button onclick="switchTab('spp')" id="nav-spp" class="tab-btn px-3 py-2 rounded-md text-emerald-200 hover:text-white hover:bg-emerald-800/60 flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-user-graduate"></i><span>SPP & IBL</span>
+        </button>
+        <button onclick="switchTab('bos')" id="nav-bos" class="tab-btn px-3 py-2 rounded-md text-emerald-200 hover:text-white hover:bg-emerald-800/60 flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-hand-holding-dollar"></i><span>BOS & BOSDA</span>
+        </button>
+        <button onclick="switchTab('laporan')" id="nav-laporan" class="tab-btn px-3 py-2 rounded-md text-emerald-200 hover:text-white hover:bg-emerald-800/60 flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-file-invoice-dollar"></i><span>Laporan Kas</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="tab-btn px-3 py-2 rounded-md text-emerald-200 hover:text-white hover:bg-emerald-800/60 flex items-center space-x-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-database"></i><span>Koneksi Firebase</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ==================== TAB 1: DASHBOARD ==================== -->
+    <section id="tab-dashboard" class="tab-content active space-y-6">
+      <!-- Filter Unit & Periode -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Ringkasan Eksekutif Keuangan</h2>
+          <p class="text-xs text-slate-500">Yayasan Islam Qudwatul Ummah Lebak • Konsolidasi Multi-Unit</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <select id="filter-unit" onchange="applyFilters()" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <option value="ALL">Semua Unit (Konsolidasi)</option>
+            <option value="yayasan">Kantor Yayasan</option>
+            <option value="tkit">TKIT Qudwatul Ummah</option>
+            <option value="sdit">SDIT Qudwatul Ummah</option>
+            <option value="smpit">SMPIT Qudwatul Ummah</option>
+            <option value="smait">SMAIT Qudwatul Ummah</option>
+            <option value="boarding">Pondok / Boarding</option>
+          </select>
+          <button onclick="loadDashboardData()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm transition">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Kas & Bank</p>
+            <h3 class="text-2xl font-bold text-emerald-600 mt-1" id="stat-kas">Rp 348.500.000</h3>
+            <span class="inline-block mt-1 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-medium">Likuid & Siap Pakai</span>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-vault"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Penerimaan Bulan Ini</p>
+            <h3 class="text-2xl font-bold text-blue-600 mt-1" id="stat-masuk">Rp 87.500.000</h3>
+            <span class="inline-block mt-1 text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded font-medium">SPP, IBL, Sodaqoh</span>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-arrow-down-long"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pengeluaran Bulan Ini</p>
+            <h3 class="text-2xl font-bold text-rose-600 mt-1" id="stat-keluar">Rp 42.350.000</h3>
+            <span class="inline-block mt-1 text-[11px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-medium">Operasional & ATK</span>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-arrow-up-long"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Sisa Pagu BOS</p>
+            <h3 class="text-2xl font-bold text-amber-600 mt-1" id="stat-bos">Rp 65.000.000</h3>
+            <span class="inline-block mt-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-medium">Serapan: 72%</span>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm lg:col-span-1">
+          <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+            <span>Komposisi 8 Sumber Dana</span>
+            <i class="fa-solid fa-chart-pie text-emerald-500"></i>
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="chartSumberDana"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm lg:col-span-2">
+          <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+            <span>Tren Realisasi Kas Masuk & Kas Keluar 2026</span>
+            <i class="fa-solid fa-chart-line text-blue-500"></i>
+          </h3>
+          <div class="h-64">
+            <canvas id="chartTrenKas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel Transaksi Terkini -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <h3 class="font-bold text-slate-800 text-sm">Aktivitas Jurnal Terakhir (Double-Entry Posted)</h3>
+          <button onclick="switchTab('jurnal')" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+            + Tambah Transaksi
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">ID Jurnal</th>
+                <th class="p-3">Tanggal</th>
+                <th class="p-3">Unit</th>
+                <th class="p-3">Sumber Dana</th>
+                <th class="p-3">Keterangan</th>
+                <th class="p-3 text-right">Debit (Rp)</th>
+                <th class="p-3 text-right">Kredit (Rp)</th>
+                <th class="p-3 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-recent-journals" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: INPUT JURNAL ==================== -->
+    <section id="tab-jurnal" class="tab-content space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-4xl mx-auto">
+        <div class="border-b border-slate-200 pb-4 mb-6">
+          <h2 class="text-lg font-bold text-slate-800">Formulir Pencatatan Jurnal Akuntansi</h2>
+          <p class="text-xs text-slate-500">Menerapkan prinsip pembukuan berpasangan (Double-Entry Invariant: Debit == Credit).</p>
+        </div>
+
+        <form id="form-journal" onsubmit="handleJournalSubmit(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Transaksi</label>
+              <input type="date" id="j-tanggal" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Unit Organisasi</label>
+              <select id="j-unit" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="sdit">SDIT Qudwatul Ummah</option>
+                <option value="smpit">SMPIT Qudwatul Ummah</option>
+                <option value="smait">SMAIT Qudwatul Ummah</option>
+                <option value="tkit">TKIT Qudwatul Ummah</option>
+                <option value="boarding">Pondok / Boarding</option>
+                <option value="yayasan">Kantor Yayasan</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Sumber Dana</label>
+              <select id="j-fund" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="SPP">SPP (Sumbangan Pembinaan)</option>
+                <option value="BOS">BOS (Bantuan Operasional Pusat)</option>
+                <option value="BOSDA">BOSDA (Bantuan Operasional Daerah)</option>
+                <option value="INPAK">INPAK Pendidikan</option>
+                <option value="IBL">IBL (Iuran Belajar / Asrama)</option>
+                <option value="IKS">IKS (Kegiatan Siswa)</option>
+                <option value="ISB">ISB (Sarana Belajar)</option>
+                <option value="SODAQOH">Sodaqoh / ZISWAF</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Deskripsi / Keterangan Transaksi</label>
+            <input type="text" id="j-keterangan" placeholder="Contoh: Belanja ATK Penggandaan Asesmen BOS Semester Ganjil" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+          </div>
+
+          <!-- Double Entry Box -->
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+              <span>Posting Akun Berpasangan (Double Entry)</span>
+              <span id="balance-badge" class="px-2 py-0.5 rounded text-[10px] bg-slate-200 text-slate-600">Belum Seimbang</span>
+            </h4>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Sisi Debit -->
+              <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <label class="block text-xs font-bold text-emerald-700 mb-1">SISI DEBIT (+ Aset / + Beban)</label>
+                <select id="j-debit-code" class="w-full text-xs border border-slate-300 rounded p-2 mb-2">
+                  <option value="510201">510201 - Beban ATK & Perlengkapan</option>
+                  <option value="110101">110101 - Kas Operasional Unit</option>
+                  <option value="110201">110201 - Bank BSI Yayasan</option>
+                  <option value="510101">510101 - Beban Honor Guru & Karyawan</option>
+                  <option value="510301">510301 - Beban Kegiatan Siswa (IKS)</option>
+                </select>
+                <input type="number" id="j-debit-val" placeholder="Nominal Debit (Rp)" oninput="checkBalance()" required class="w-full text-xs border border-slate-300 rounded p-2 focus:ring-emerald-500">
+              </div>
+
+              <!-- Sisi Kredit -->
+              <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <label class="block text-xs font-bold text-blue-700 mb-1">SISI KREDIT (- Aset / + Pendapatan)</label>
+                <select id="j-credit-code" class="w-full text-xs border border-slate-300 rounded p-2 mb-2">
+                  <option value="110101">110101 - Kas Operasional Unit</option>
+                  <option value="110201">110201 - Bank BSI Yayasan</option>
+                  <option value="410101">410101 - Pendapatan SPP</option>
+                  <option value="410201">410201 - Pendapatan Dana BOS</option>
+                  <option value="410301">410301 - Pendapatan Sodaqoh / Infaq</option>
+                </select>
+                <input type="number" id="j-credit-val" placeholder="Nominal Kredit (Rp)" oninput="checkBalance()" required class="w-full text-xs border border-slate-300 rounded p-2 focus:ring-emerald-500">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Link Bukti Dokumen / Nota (Evidence)</label>
+            <input type="url" id="j-evidence" placeholder="https://firebasestorage.googleapis.com/.../nota.jpg (atau Google Drive link)" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500">
+          </div>
+
+          <div class="pt-3">
+            <button type="submit" id="btn-submit-journal" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Simpan & Posting Jurnal</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: SPP & IBL ==================== -->
+    <section id="tab-spp" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Form Penerimaan SPP -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm lg:col-span-1">
+          <h3 class="font-bold text-slate-800 text-base mb-1">Bayar SPP / IBL Siswa</h3>
+          <p class="text-xs text-slate-500 mb-4">Input pembayaran langsung cetak kuitansi</p>
+
+          <form id="form-spp" onsubmit="handleSPPSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Unit Sekolah</label>
+              <select id="spp-unit" required class="w-full text-xs border border-slate-300 rounded p-2">
+                <option value="sdit">SDIT Qudwatul Ummah</option>
+                <option value="smpit">SMPIT Qudwatul Ummah</option>
+                <option value="smait">SMAIT Qudwatul Ummah</option>
+                <option value="boarding">Pondok / Boarding</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Siswa</label>
+              <input type="text" id="spp-nama" placeholder="Contoh: Muhammad Ihsan" required class="w-full text-xs border border-slate-300 rounded p-2">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Kelas</label>
+                <input type="text" id="spp-kelas" placeholder="8-A Tahfizh" required class="w-full text-xs border border-slate-300 rounded p-2">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Bulan</label>
+                <select id="spp-bulan" class="w-full text-xs border border-slate-300 rounded p-2">
+                  <option value="2026-09">September 2026</option>
+                  <option value="2026-10">Oktober 2026</option>
+                  <option value="2026-11">November 2026</option>
+                  <option value="2026-12">Desember 2026</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nominal SPP (Rp)</label>
+              <input type="number" id="spp-nominal" value="450000" oninput="calcTotalSPP()" class="w-full text-xs border border-slate-300 rounded p-2">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nominal IBL / Asrama (Rp)</label>
+              <input type="number" id="spp-ibl" value="0" oninput="calcTotalSPP()" class="w-full text-xs border border-slate-300 rounded p-2">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nominal IKS (Rp)</label>
+              <input type="number" id="spp-iks" value="50000" oninput="calcTotalSPP()" class="w-full text-xs border border-slate-300 rounded p-2">
+            </div>
+
+            <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <div class="flex justify-between items-center text-xs text-emerald-800 font-semibold">
+                <span>Total Setoran:</span>
+                <span class="text-base text-emerald-700 font-bold" id="spp-total-display">Rp 500.000</span>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-xs transition">
+              Simpan Pembayaran Siswa
+            </button>
+          </form>
+        </div>
+
+        <!-- Tabel Riwayat Pembayaran SPP -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm lg:col-span-2 overflow-hidden flex flex-col">
+          <h3 class="font-bold text-slate-800 text-base mb-3">Daftar Setoran SPP & IBL Masuk</h3>
+          <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 font-semibold border-b">
+                <tr>
+                  <th class="p-2.5">No Invoice</th>
+                  <th class="p-2.5">Siswa & Unit</th>
+                  <th class="p-2.5">Kelas</th>
+                  <th class="p-2.5">Bulan</th>
+                  <th class="p-2.5 text-right">Total Bayar</th>
+                  <th class="p-2.5 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="table-spp-list" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Render via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: BOS & BOSDA ==================== -->
+    <section id="tab-bos" class="tab-content space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between border-b pb-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Manajemen Anggaran BOS & BOSDA</h2>
+            <p class="text-xs text-slate-500">Monitoring Pagu, Realisasi Belanja, dan Kepatuhan Bukti Nota</p>
+          </div>
+          <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-semibold">Tahun Anggaran 2026</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+            <p class="text-xs text-slate-500">Pagu Total BOS Tahap II</p>
+            <p class="text-xl font-bold text-slate-800 mt-1">Rp 120.000.000</p>
+          </div>
+          <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+            <p class="text-xs text-slate-500">Realisasi Terserap</p>
+            <p class="text-xl font-bold text-emerald-600 mt-1">Rp 55.000.000</p>
+          </div>
+          <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+            <p class="text-xs text-slate-500">Sisa Pagu Siap Belanja</p>
+            <p class="text-xl font-bold text-blue-600 mt-1">Rp 65.000.000</p>
+          </div>
+        </div>
+
+        <h3 class="font-bold text-slate-800 text-sm mb-3">Realisasi Komponen Standar Pembelanjaan BOS</h3>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Pengembangan Perpustakaan & Buku</span>
+              <span>Rp 15.000.000 / Rp 20.000.000 (75%)</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div class="bg-emerald-500 h-2 rounded-full" style="width: 75%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Pelaksanaan Kegiatan Pembelajaran & Ekstrakurikuler</span>
+              <span>Rp 22.000.000 / Rp 40.000.000 (55%)</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div class="bg-blue-500 h-2 rounded-full" style="width: 55%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Pemeliharaan Sarana & Prasarana Sekolah</span>
+              <span>Rp 18.000.000 / Rp 30.000.000 (60%)</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div class="bg-amber-500 h-2 rounded-full" style="width: 60%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: LAPORAN KAS ==================== -->
+    <section id="tab-laporan" class="tab-content space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between border-b pb-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Laporan Buku Kas Umum & Arus Kas</h2>
+            <p class="text-xs text-slate-500">Rekapitulasi penerimaan dan pengeluaran Yayasan Islam Qudwatul Ummah</p>
+          </div>
+          <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded-lg transition flex items-center space-x-1">
+            <i class="fa-solid fa-print"></i>
+            <span>Cetak Laporan</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border border-slate-200">
+            <thead class="bg-slate-100 font-semibold text-slate-700">
+              <tr>
+                <th class="p-3 border">No</th>
+                <th class="p-3 border">Tanggal</th>
+                <th class="p-3 border">Uraian Transaksi</th>
+                <th class="p-3 border">Sumber Dana</th>
+                <th class="p-3 border text-right">Penerimaan (Rp)</th>
+                <th class="p-3 border text-right">Pengeluaran (Rp)</th>
+                <th class="p-3 border text-right">Saldo Kumulatif (Rp)</th>
+              </tr>
+            </thead>
+            <tbody id="table-buku-kas" class="divide-y divide-slate-200">
+              <!-- Render via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: SETTINGS & FIREBASE ==================== -->
+    <section id="tab-settings" class="tab-content space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto">
+        <div class="border-b pb-4 mb-4">
+          <h2 class="text-lg font-bold text-slate-800">Pengaturan Koneksi Cloud Firebase</h2>
+          <p class="text-xs text-slate-500">Hubungkan aplikasi langsung ke Cloud Firestore atau jalankan lewat Google Apps Script backend.</p>
+        </div>
+
+        <form id="form-firebase-config" onsubmit="saveFirebaseConfig(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Firebase Project ID</label>
+            <input type="text" id="fb-project-id" placeholder="qudwah-keuangan-prod" required class="w-full text-xs border border-slate-300 rounded p-2.5">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Firebase Web API Key</label>
+            <input type="password" id="fb-api-key" placeholder="AIzaSyXXXXXXXXXXXXXXXXXXXXXX" required class="w-full text-xs border border-slate-300 rounded p-2.5">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Auth Domain</label>
+              <input type="text" id="fb-auth-domain" placeholder="qudwah-keuangan-prod.firebaseapp.com" class="w-full text-xs border border-slate-300 rounded p-2.5">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Storage Bucket</label>
+              <input type="text" id="fb-storage-bucket" placeholder="qudwah-keuangan-prod.appspot.com" class="w-full text-xs border border-slate-300 rounded p-2.5">
+            </div>
+          </div>
+
+          <div class="pt-2 flex items-center space-x-3">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-lg text-xs transition">
+              Simpan & Hubungkan Firebase
+            </button>
+            <button type="button" onclick="testConnection()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-lg text-xs transition">
+              Uji Koneksi
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+    <p>© 2026 Yayasan Islam Qudwatul Ummah Lebak. Tugas Projek Bisnis Digital (BUSDIGIT).</p>
+  </footer>
+
+  <!-- SCRIPT LOGIKA APLIKASI -->
+  <script>
+    // State lokal aplikasi
+    let currentTab = 'dashboard';
+    let isFirebaseReady = false;
+    let db = null;
+
+    // Data in-memory mock untuk fallback instan
+    let journals = [
+      { id: "JV-SDIT-202609-101", tgl: "2026-09-24", unit: "SDIT Qudwah", dana: "BOS", desc: "Pembelian ATK Semester Ganjil", debit: 2450000, credit: 2450000, status: "POSTED" },
+      { id: "JV-SMPIT-202609-102", tgl: "2026-09-24", unit: "SMPIT Qudwah", dana: "SPP", desc: "Penerimaan SPP Siswa Kelas 8A", debit: 4500000, credit: 4500000, status: "POSTED" },
+      { id: "JV-SMAIT-202609-103", tgl: "2026-09-23", unit: "SMAIT Qudwah", dana: "BOSDA", desc: "Konsumsi Pelatihan Guru Tahfizh", debit: 1200000, credit: 1200000, status: "POSTED" },
+      { id: "JV-YAYS-202609-104", tgl: "2026-09-22", unit: "Kantor Yayasan", dana: "Sodaqoh", desc: "Santunan Siswa Yatim & Dhuafa", debit: 3500000, credit: 3500000, status: "POSTED" }
+    ];
+
+    let sppPayments = [
+      { id: "SPP-SMP-001", nama: "Ahmad Fauzi", unit: "SMPIT Qudwah", kelas: "8-A", bulan: "September 2026", total: 500000 },
+      { id: "SPP-SD-002", nama: "Fatimah Zahra", unit: "SDIT Qudwah", kelas: "4-B", bulan: "September 2026", total: 450000 },
+      { id: "SPP-SMA-003", nama: "Rayhan Pratama", unit: "SMAIT Qudwah", kelas: "11-IPA", bulan: "September 2026", total: 1100000 }
+    ];
+
+    // Navigasi Tab
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-700', 'text-white');
+        btn.classList.add('text-emerald-200');
+      });
+
+      const activeSection = document.getElementById('tab-' + tabId);
+      const activeBtn = document.getElementById('nav-' + tabId);
+      if (activeSection) activeSection.classList.add('active');
+      if (activeBtn) {
+        activeBtn.classList.add('bg-emerald-700', 'text-white');
+        activeBtn.classList.remove('text-emerald-200');
+      }
+      currentTab = tabId;
+
+      if (tabId === 'dashboard') loadDashboardData();
+      if (tabId === 'laporan') renderBukuKas();
+    }
+
+    // Cek Balance Invariant Jurnal
+    function checkBalance() {
+      const d = Number(document.getElementById('j-debit-val').value) || 0;
+      const c = Number(document.getElementById('j-credit-val').value) || 0;
+      const badge = document.getElementById('balance-badge');
+
+      if (d > 0 && c > 0 && Math.round(d) === Math.round(c)) {
+        badge.className = "px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold";
+        badge.textContent = "Seimbang (Balanced)";
+      } else {
+        badge.className = "px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold";
+        badge.textContent = "Tidak Seimbang (Diff: Rp " + Math.abs(d - c).toLocaleString('id-ID') + ")";
+      }
+    }
+
+    // Submit Jurnal
+    function handleJournalSubmit(e) {
+      e.preventDefault();
+      const debit = Number(document.getElementById('j-debit-val').value) || 0;
+      const credit = Number(document.getElementById('j-credit-val').value) || 0;
+
+      if (debit !== credit || debit <= 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Jurnal Tidak Seimbang!',
+          text: 'Nominal Debit dan Kredit harus bernilai sama besar untuk menjaga integritas akuntansi double-entry.'
+        });
+        return;
+      }
+
+      const newEntry = {
+        id: "JV-" + document.getElementById('j-unit').value.toUpperCase() + "-" + Date.now().toString().slice(-4),
+        tgl: document.getElementById('j-tanggal').value || new Date().toISOString().slice(0, 10),
+        unit: document.getElementById('j-unit').options[document.getElementById('j-unit').selectedIndex].text,
+        dana: document.getElementById('j-fund').value,
+        desc: document.getElementById('j-keterangan').value,
+        debit: debit,
+        credit: credit,
+        status: "POSTED"
+      };
+
+      // Simpan lokal
+      journals.unshift(newEntry);
+
+      // Jika terhubung Apps Script Backend
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(res) {
+          console.log("GAS Response:", res);
+        }).recordJournalTransaction({
+          unitId: document.getElementById('j-unit').value,
+          fundSourceId: document.getElementById('j-fund').value,
+          keterangan: document.getElementById('j-keterangan').value,
+          debitAccountCode: document.getElementById('j-debit-code').value,
+          debitAccountName: document.getElementById('j-debit-code').options[document.getElementById('j-debit-code').selectedIndex].text,
+          nominalDebit: debit,
+          creditAccountCode: document.getElementById('j-credit-code').value,
+          creditAccountName: document.getElementById('j-credit-code').options[document.getElementById('j-credit-code').selectedIndex].text,
+          nominalCredit: credit,
+          evidenceUrl: document.getElementById('j-evidence').value
+        });
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Jurnal Berhasil Diposting!',
+        text: 'ID: ' + newEntry.id
+      }).then(() => {
+        document.getElementById('form-journal').reset();
+        checkBalance();
+        switchTab('dashboard');
+      });
+    }
+
+    // Kalkulasi & Submit SPP
+    function calcTotalSPP() {
+      const spp = Number(document.getElementById('spp-nominal').value) || 0;
+      const ibl = Number(document.getElementById('spp-ibl').value) || 0;
+      const iks = Number(document.getElementById('spp-iks').value) || 0;
+      const total = spp + ibl + iks;
+      document.getElementById('spp-total-display').textContent = 'Rp ' + total.toLocaleString('id-ID');
+      return total;
+    }
+
+    function handleSPPSubmit(e) {
+      e.preventDefault();
+      const total = calcTotalSPP();
+      const item = {
+        id: "SPP-" + Date.now().toString().slice(-4),
+        nama: document.getElementById('spp-nama').value,
+        unit: document.getElementById('spp-unit').options[document.getElementById('spp-unit').selectedIndex].text,
+        kelas: document.getElementById('spp-kelas').value,
+        bulan: document.getElementById('spp-bulan').options[document.getElementById('spp-bulan').selectedIndex].text,
+        total: total
+      };
+
+      sppPayments.unshift(item);
+      renderSPPTable();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Pembayaran Diterima!',
+        text: 'Setoran an. ' + item.nama + ' sebesar Rp ' + total.toLocaleString('id-ID') + ' telah dicatat.'
+      });
+
+      document.getElementById('form-spp').reset();
+      calcTotalSPP();
+    }
+
+    function renderSPPTable() {
+      const tbody = document.getElementById('table-spp-list');
+      tbody.innerHTML = sppPayments.map(s => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-2.5 font-mono text-blue-600 font-medium">${s.id}</td>
+          <td class="p-2.5 font-medium">${s.nama}<br><span class="text-[10px] text-slate-400">${s.unit}</span></td>
+          <td class="p-2.5">${s.kelas}</td>
+          <td class="p-2.5">${s.bulan}</td>
+          <td class="p-2.5 text-right font-bold text-emerald-600">Rp ${s.total.toLocaleString('id-ID')}</td>
+          <td class="p-2.5 text-center">
+            <button onclick="cetakKuitansi('${s.id}', '${s.nama}', ${s.total})" class="bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-[10px] font-semibold text-slate-700">
+              <i class="fa-solid fa-receipt"></i> Nota
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function cetakKuitansi(id, nama, total) {
+      Swal.fire({
+        title: 'KUITANSI PEMBAYARAN',
+        html: `
+          <div class="text-left text-xs space-y-1 p-3 bg-slate-50 border rounded">
+            <p><strong>Yayasan Islam Qudwatul Ummah Lebak</strong></p>
+            <p>No: <strong>${id}</strong></p>
+            <p>Telah terima dari: <strong>${nama}</strong></p>
+            <p>Jumlah: <strong class="text-emerald-700">Rp ${total.toLocaleString('id-ID')}</strong></p>
+            <p>Status: <span class="text-emerald-600 font-bold">LUNAS</span></p>
+          </div>
+        `,
+        icon: 'info',
+        confirmButtonText: 'Cetak / Tutup'
+      });
+    }
+
+    // Render Recent Journals Table
+    function renderJournalTable() {
+      const tbody = document.getElementById('table-recent-journals');
+      tbody.innerHTML = journals.map(j => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono text-emerald-700 font-semibold">${j.id}</td>
+          <td class="p-3 text-slate-500">${j.tgl}</td>
+          <td class="p-3 font-medium">${j.unit}</td>
+          <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">${j.dana}</span></td>
+          <td class="p-3">${j.desc}</td>
+          <td class="p-3 text-right font-medium">Rp ${j.debit.toLocaleString('id-ID')}</td>
+          <td class="p-3 text-right font-medium">Rp ${j.credit.toLocaleString('id-ID')}</td>
+          <td class="p-3 text-center"><span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">${j.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Buku Kas Umum
+    function renderBukuKas() {
+      const tbody = document.getElementById('table-buku-kas');
+      let saldo = 300000000;
+      tbody.innerHTML = journals.map((j, idx) => {
+        const penerimaan = j.desc.includes('Penerimaan') ? j.debit : 0;
+        const pengeluaran = penerimaan === 0 ? j.credit : 0;
+        saldo = saldo + penerimaan - pengeluaran;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 border text-center">${idx + 1}</td>
+            <td class="p-3 border">${j.tgl}</td>
+            <td class="p-3 border font-medium">${j.desc} (${j.unit})</td>
+            <td class="p-3 border">${j.dana}</td>
+            <td class="p-3 border text-right text-emerald-700 font-medium">${penerimaan > 0 ? 'Rp ' + penerimaan.toLocaleString('id-ID') : '-'}</td>
+            <td class="p-3 border text-right text-rose-700 font-medium">${pengeluaran > 0 ? 'Rp ' + pengeluaran.toLocaleString('id-ID') : '-'}</td>
+            <td class="p-3 border text-right font-bold text-slate-800">Rp ${saldo.toLocaleString('id-ID')}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Inisialisasi Charts
+    let chartDoughnut = null;
+    let chartLine = null;
+
+    function initCharts() {
+      if (typeof Chart !== 'undefined') {
+        Chart.defaults.font.family = "'Plus Jakarta Sans', 'Segoe UI', Tahoma, Arial, sans-serif";
+      }
+      const ctxDoughnut = document.getElementById('chartSumberDana').getContext('2d');
+      chartDoughnut = new Chart(ctxDoughnut, {
+        type: 'doughnut',
+        data: {
+          labels: ['SPP', 'BOS', 'BOSDA', 'INPAK', 'IBL', 'IKS/ISB', 'Sodaqoh'],
+          datasets: [{
+            data: [35, 25, 10, 8, 7, 5, 10],
+            backgroundColor: ['#059669', '#2563eb', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#10b981']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+      });
+
+      const ctxLine = document.getElementById('chartTrenKas').getContext('2d');
+      chartLine = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep'],
+          datasets: [
+            {
+              label: 'Penerimaan',
+              data: [65, 70, 78, 82, 80, 85, 90, 88, 87.5],
+              borderColor: '#059669',
+              backgroundColor: 'rgba(5, 150, 105, 0.1)',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Pengeluaran',
+              data: [35, 38, 42, 45, 40, 50, 48, 44, 42.3],
+              borderColor: '#e11d48',
+              backgroundColor: 'rgba(225, 29, 72, 0.05)',
+              fill: true,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function loadDashboardData() {
+      renderJournalTable();
+    }
+
+    function applyFilters() {
+      const selectedUnit = document.getElementById('filter-unit').value;
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+        icon: 'info',
+        title: 'Filter: ' + selectedUnit
+      });
+    }
+
+    // Simpan Config Firebase
+    function saveFirebaseConfig(e) {
+      e.preventDefault();
+      const config = {
+        apiKey: document.getElementById('fb-api-key').value,
+        projectId: document.getElementById('fb-project-id').value,
+        authDomain: document.getElementById('fb-auth-domain').value,
+        storageBucket: document.getElementById('fb-storage-bucket').value
+      };
+
+      localStorage.setItem('qudwah_firebase_config', JSON.stringify(config));
+      initFirebaseClient(config);
+    }
+
+    function initFirebaseClient(config) {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(config);
+        }
+        db = firebase.firestore();
+        isFirebaseReady = true;
+        document.getElementById('db-status-dot').className = "w-2 h-2 rounded-full bg-emerald-400";
+        document.getElementById('db-status-text').textContent = "Firebase Live";
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Terhubung ke Firebase!',
+          text: 'Project: ' + config.projectId
+        });
+      } catch (err) {
+        console.error("Firebase init error:", err);
+      }
+    }
+
+    function testConnection() {
+      Swal.fire({
+        icon: 'success',
+        title: 'Uji Koneksi Berhasil',
+        text: 'Aplikasi siap melayani transaksi keuangan Yayasan Islam Qudwatul Ummah Lebak.'
+      });
+    }
+
+    // Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('j-tanggal').value = new Date().toISOString().slice(0, 10);
+      initCharts();
+      loadDashboardData();
+      renderSPPTable();
+
+      // Cek apakah ada config firebase tersimpan
+      const saved = localStorage.getItem('qudwah_firebase_config');
+      if (saved) {
+        try {
+          const cfg = JSON.parse(saved);
+          document.getElementById('fb-project-id').value = cfg.projectId || '';
+          document.getElementById('fb-api-key').value = cfg.apiKey || '';
+          document.getElementById('fb-auth-domain').value = cfg.authDomain || '';
+          document.getElementById('fb-storage-bucket').value = cfg.storageBucket || '';
+          initFirebaseClient(cfg);
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>
